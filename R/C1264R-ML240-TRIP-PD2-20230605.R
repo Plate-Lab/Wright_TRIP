@@ -10,14 +10,12 @@ library(ggplot2)
 library(viridis)
 library(forcats)
 library(scales)
-library(gplots)
-
 
 #input file names and experiments
 #read in csv file with
 #1. columns listing csv files (header: "File"),
 #2. column listing conditions (header: "Experiment")
-file_names<-read_csv("TRIP-layout.csv")
+file_names<-read_csv("ML240-TRIP-layout.csv")
 
 #run through loop carrying out all the analysis for each file
 
@@ -59,7 +57,7 @@ for (i in file_names$File) {
     )
   
   #read in list of Tg TRIP interactors (based on comparion to (-)Biotin comparison)
-  interactors<-read_csv("../Tg-TRIP-interactors.csv")
+  interactors<-read_csv("Tg-TRIP-interactors.csv")
   #convert to all uppercase
   interactors$interactor<-toupper(interactors$interactor)
   
@@ -197,13 +195,12 @@ TRIP_HPGscaled_wide<-TRIP_HPGscaled_sum %>%
   arrange(experiment) %>%
   #pivot to wide format
   pivot_wider(
-    id_cols=c("Accession","Gene Symbol"),
+    id_cols=c("Accession","Description","Gene Symbol"),
     names_from = c("experiment","condition"),
     values_from=c(mn_scaled_intensity, mn_scaled_sem))
 #export to csv file
-write_csv(TRIP_HPGscaled_wide, "TRIP-combined-HPGscaled.csv")
+write_csv(TRIP_HPGscaled_wide, "TRIP-C1264R-ML240combined-HPGscaled.csv")
 
-#=======================================================================================
 #Subset sample output tibble for heatmap
 gene_list=c("HSPA5","HSP90B1","HYOU1","DNAJB11","DNAJC10","DNAJC3","SDF2L1")
 gene_list2=c("ERP29","ERP44","P4HB","PDIA3","PDIA4","PDIA6","TXNDC12","TXNDC5")
@@ -214,8 +211,8 @@ gene_list6=c("COLGALT1","NID1","P4HA1","PLOD1","PLOD3","PPIA","PPIB","SERPINH1")
 gene_list7=c("EDEM3","HSPA8","OS9","SEL1L","VCP")
 gene_list8=c("HSPA5","HSP90B1","HYOU1","DNAJB11","DNAJC10")
 pd_sample<-TRIP_HPGscaled_sum %>%
-  filter(`Gene Symbol`%in% gene_list6) %>%
-  arrange(factor(`Gene Symbol`, levels=gene_list)) %>%
+  filter(`Gene Symbol`%in% gene_list2) %>%
+  arrange(factor(`Gene Symbol`, levels=gene_list2)) %>%
   #unite Gene Symbol and experiment column
   unite(col='Gene_exp', c(`Gene Symbol`, experiment), sep='_') 
 
@@ -235,7 +232,6 @@ ggplot(pd_sample, aes(x = condition, y = factor(`Gene_exp`), fill = mn_scaled_in
     axis.ticks = element_blank()
   )
 
-#=======================================================================================
 #plotting heatmaps for individual experiments
 pd_sample<-TRIP_HPGscaled_sum %>%
   filter(`Gene Symbol`%in% gene_list8) %>%
@@ -258,9 +254,9 @@ ggplot(pd_sample, aes(x = condition, y = factor(`Gene Symbol`), fill = mn_scaled
     axis.ticks = element_blank()
   )
 
-#=======================================================================================
+
 #Subset individual protein sample output in tibble for time-course x-y plots
-gene_highlight="ERP44"
+gene_highlight="VCP"
 TRIP_individual<-TRIP_HPGscaled_sum %>%
   filter(`Gene Symbol` == gene_highlight)
 #conversion table to float time points
@@ -282,14 +278,12 @@ ggplot(TRIP_individual2, aes(x = time, y = mn_scaled_intensity, color = experime
         axis.title = element_text(size = 16)) +
   ggtitle(gene_highlight) 
 
-#=======================================================================================
 #Subset list of protein output (e.g. PDIs) in tibble for time-course x-y plots
-gene_list2=c("ERP29","ERP44","P4HB","PDIA3","PDIA4","PDIA6","TXNDC12","TXNDC5")
-treatment<-c("WT")
+treatment<-c("C1264R_ML-240")
 TRIP_prot_list<-TRIP_HPGscaled_sum %>%
   filter(experiment %in% treatment) %>%
-  filter(`Gene Symbol`%in% gene_list2) %>%
-  arrange(factor(`Gene Symbol`, levels=gene_list))
+  filter(`Gene Symbol`%in% gene_list7) %>%
+  arrange(factor(`Gene Symbol`, levels=gene_list7))
 #conversion table to float time points
 TC_conversion=tibble(condition = c(" 0_0Hr"," 0_5Hr", " 1_0Hr", " 1_5Hr"," 2_0Hr", " 3_0Hr"),
                      time=c(0.0,0.5,1.0,1.5,2.0,3.0))
@@ -307,14 +301,9 @@ ggplot(TRIP_prot_list2, aes(x = time, y = mn_scaled_intensity, color = `Gene Sym
         axis.title = element_text(size = 16)) +
   ggtitle(treatment) 
 
-#=======================================================================================
 #Subset aggregate pathways (e.g. Chaperones, PDIs) in tibble for time-course x-y plots
-#select gene_list from pathway annotations
-pathway_focus<-pathway_level[10]
-gene_list<-pathway_annot_long %>% filter(Pathway==pathway_focus) %>% pull(Protein)
-#subset data by pathway and summarize  
 TRIP_pathway<-TRIP_HPGscaled_sum %>%
-  filter(`Gene Symbol`%in% gene_list) %>%
+  filter(`Gene Symbol`%in% gene_list7) %>%
   group_by(experiment,condition) %>%
   #summarize to median, 1st, and 3rd quartile
   summarize(med_pathway=median(mn_scaled_intensity,na.rm=TRUE),
@@ -336,8 +325,7 @@ ggplot(TRIP_pathway2, aes(x = time, y = med_pathway, color = experiment)) +
   ylim(0, 1.0)+
   theme_classic() +
   theme(axis.text = element_text(size = 16),
-        axis.title = element_text(size = 16)) +
-  ggtitle(pathway_focus)
+        axis.title = element_text(size = 16))
 
 #=======================================================================================
 #plotting full heatmaps of all interactor time courses (for supplemental figures)
@@ -358,10 +346,8 @@ TRIP_HPGscaled_sum <-left_join(
 
 #subset datasets based on interactor annotations and experiment
 pd_sample<-TRIP_HPGscaled_sum %>%
-  filter(`Gene Symbol`%in% pathway_annot_long$Protein)
-
-%>%
-  filter(experiment=="WT")
+  filter(`Gene Symbol`%in% pathway_annot_long$Protein) %>%
+  filter(experiment=="C1264R_ML-240")
 
 #Order of pathways
 pathway_level<-colnames(pathway_annot)
@@ -423,52 +409,4 @@ ggplot(pd_sample, aes(x = experiment, y = mn_scaled_sem, fill = condition)) +
   #scale_y_log10() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   theme_classic()
-  
-
-#=======================================================================================
-#conversion of filtered data to wide format for hierarchical clustering
-pd_sample.wide<-pd_sample %>% 
-  filter(mn_scaled_intensity!="NaN") %>%
-  pivot_wider(
-    id_cols=c(Accession,`Gene Symbol`),
-    names_from = "condition",
-    values_from= mn_scaled_intensity) %>%
-  unite(col="rowID", c(`Gene Symbol`, Accession), sep='_') %>%
-  column_to_rownames("rowID")
-
-#Hierarchical clustering of time course data and ordered heatmap
-pd_sample.matrix<-as.matrix(pd_sample.wide)
-pd_sample.dist<-dist(pd_sample.matrix, method="euclidean")
-pd_sample.hist<-hclust(pd_sample.dist, "ward.D")
-
-#Define the sub-clusters:
-mycl <- cutree(pd_sample.hist, h=max(pd_sample.hist$height/9))
-#Check how many sub-clusters are generated:
-max(mycl)
-
-#Define a color palette to highlight the sub-clusters on the heatmap:
-clusterCols <- rainbow(length(unique(mycl)))
-myClusterSideBar <- clusterCols[mycl]
-
-#plot in heatmap
-heatmap.2(pd_sample.matrix,
-          main="Hierarchical Cluster",
-          Rowv=as.dendrogram(pd_sample.hist),
-          Colv=NA, dendrogram="row",
-          scale="none",
-          density.info="none",
-          trace="none",
-          col= magma(100),
-          RowSideColors= myClusterSideBar)
-
-#bind the sub-cluster assignment with the original data matrix:
-foo <- cbind(pd_sample.matrix, clusterID=mycl) %>%
-  rownames_to_column()
-
-#Write the sorted data to a new csv file:
-write.csv(foo[pd_sample.hist$order,],file='clustered_A2234D_2D_wardD.csv')
-#This produces a csv file, which can be opened in Excel
-
-
-
 
